@@ -119,12 +119,12 @@ def generate_qr_parser(arguments):
     parser.add_argument('--img_file_path',
                         dest='img_file_path',
                         help='img_file_path, image to be generated with qr',
-                        default="/qr/user_img.jpeg",
+                        default="/qr/images/1.jpeg",
                         )
     parser.add_argument('--final_img_file_path',
                         dest='final_img_file_path',
                         help='final_img_file_path, final image location to be saved',
-                        default="/qr/new_user_img.jpeg",
+                        default="/qr/images/result_images/1.jpeg",
                         )
     parser.add_argument('--final_img_type',
                         dest='final_img_type',

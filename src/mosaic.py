@@ -21,9 +21,9 @@ def get_tile_split_masks(split_len, data):
 
 
 def main():
-    img_file_path = 'kasol.jpeg'
-    final_img_file_path = 'mosaic3.png'
-    tile_directory = '/qr/images'
+    img_file_path = '/qr/images/1.jpeg'
+    final_img_file_path = '/qr/images/result_images/mosaic.jpeg'
+    tile_directory = '/qr/images/image_set'
     tile_to_user_img_pixel_ratio = 50
     tile_size = 500
     tiles_data = []
@@ -51,7 +51,7 @@ def main():
                 img_index_dict[img_index] = random.randrange(len(tiles_split_img_dict))
             tile_split_img = tiles_split_img_dict[img_index_dict[img_index]][index]
             tint_img = Image.new('RGB', tile_split_img.size, tuple(user_img_data[r, c]))
-            new_data = np.array(Image.blend(tile_split_img, tint_img, 0.85))
+            new_data = np.array(Image.blend(tile_split_img, tint_img, 0.2))
             print(r, c, user_img_breadth, user_img_len, tile_size, user_img_data[r, c])
             row_list.append(new_data)
         column_list.append(np.concatenate(row_list, axis=1))
@@ -60,7 +60,6 @@ def main():
     del column_list
     new_img = Image.fromarray(new_img_data).convert('RGB')
     new_img.save(final_img_file_path)
-
 
 
 if __name__ == '__main__':
