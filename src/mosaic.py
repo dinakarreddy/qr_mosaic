@@ -2,6 +2,7 @@ import numpy as np
 import os
 import random
 from PIL import Image
+from cachetools import Cache
 
 
 def get_tile_split_masks(split_len, data):
@@ -20,9 +21,22 @@ def get_tile_split_masks(split_len, data):
     return data_dict
 
 
+def get_tile_split_img_dict(cache, file_index, tile_file_names, tile_size, tile_to_user_img_pixel_ratio):
+    tile_split_img_dict = cache.get(file_index)
+    if tile_split_img_dict is not None:
+        return tile_split_img_dict
+    print("Img data not present in cache, loading it")
+    file_name = tile_file_names[file_index]
+    tile_data = np.array(Image.open(file_name).convert('RGB').resize((tile_size, tile_size)))
+    tile_split_data_dict = get_tile_split_masks(tile_to_user_img_pixel_ratio, tile_data)
+    tile_split_img_dict = {index: Image.fromarray(value) for index, value in tile_split_data_dict.items()}
+    cache[file_index] = tile_split_img_dict
+    return tile_split_img_dict
+
+
 def main(img_file_path='images/1.jpeg', final_img_file_path='images/result_images/mosaic.jpeg',
-         tile_directory='images/image_set', tile_size=1000, tile_to_user_img_pixel_ratio=50, user_img_len=2000,
-         user_img_breadth=2000):
+         tile_directory='images/image_set', tile_size=2000, tile_to_user_img_pixel_ratio=100, user_img_len=1000,
+         user_img_breadth=1000, cache_size=10):
     """
     :param img_file_path: The image that needs to be made as a mosaic
     :param final_img_file_path: Final mosaic image will be stored at this path
@@ -31,6 +45,7 @@ def main(img_file_path='images/1.jpeg', final_img_file_path='images/result_image
     :param tile_to_user_img_pixel_ratio: This will decide the number of sub images inside the mosaic
     :param user_img_len: The image that needs to be made as a mosaic will be resized to this
     :param user_img_breadth: The image that needs to be made as a mosaic will be resized to this
+    :param cache_size: Number of images stored in memory. Depending on the RAM of the machine need to control this
 
     The function creates a mosaic image at final_img_file_path
     The final image will contain the following number of sub images:
@@ -38,19 +53,17 @@ def main(img_file_path='images/1.jpeg', final_img_file_path='images/result_image
     tile_size decides the number of pixels each sub image will contain, so this will decide the clarity of each image.
         Higher the number, higher the quality with the downside being increased size
     """
+    cache = Cache(cache_size)
+
     tiles_data = []
-    for filename in os.listdir(tile_directory):
-        if filename.endswith(".jpeg"):
-            tiles_data.append(np.array(
-                Image.open(os.path.join(tile_directory, filename)).convert('RGB').resize((tile_size, tile_size))))
+    tile_file_names = []
+    for root, subFolders, files in os.walk(tile_directory):
+        for tile_name in files:
+            if tile_name.endswith(".jpeg") or tile_name.endswith(".JPG"):
+                tile_file_names.append(os.path.join(root, tile_name))
     user_img = Image.open(img_file_path)
     user_img = user_img.resize((user_img_len, user_img_breadth))
     user_img_data = np.array(user_img)
-    tiles_split_data_dict = [get_tile_split_masks(tile_to_user_img_pixel_ratio, tile_data) for tile_data in tiles_data]
-    tiles_split_img_dict = []
-    for tile_split_data_dict in tiles_split_data_dict:
-        tiles_split_img_dict.append({index: Image.fromarray(value) for index, value in tile_split_data_dict.items()})
-    del tiles_split_data_dict, tiles_data
     column_list = []
     img_index_dict = {}
     for r in range(user_img_breadth):
@@ -59,8 +72,8 @@ def main(img_file_path='images/1.jpeg', final_img_file_path='images/result_image
             index = ((r % tile_to_user_img_pixel_ratio), (c % tile_to_user_img_pixel_ratio))
             img_index = (int(r / tile_to_user_img_pixel_ratio), int(c / tile_to_user_img_pixel_ratio))
             if img_index not in img_index_dict:
-                img_index_dict[img_index] = random.randrange(len(tiles_split_img_dict))
-            tile_split_img = tiles_split_img_dict[img_index_dict[img_index]][index]
+                img_index_dict[img_index] = random.randrange(len(tile_file_names))
+            tile_split_img = get_tile_split_img_dict(cache, img_index_dict[img_index], tile_file_names, tile_size, tile_to_user_img_pixel_ratio)[index]
             tint_img = Image.new('RGB', tile_split_img.size, tuple(user_img_data[r, c]))
             new_data = np.array(Image.blend(tile_split_img, tint_img, 0.8))
             print(r, c, user_img_breadth, user_img_len, tile_size, user_img_data[r, c])
